@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChartPredict | AI Futures Trading Analysis</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90' font-family='Arial' font-weight='bold'><tspan fill='%23ffffff'>C</tspan><tspan fill='%2300d26a'>P</tspan></text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0a0b; --bg-secondary: #111113; --bg-card: #161618; --bg-hover: #1c1c1f;
+            --border: #2a2a2d; --text-primary: #fafafa; --text-secondary: #a1a1a6; --text-muted: #6b6b70;
+            --accent-green: #00d26a; --accent-green-glow: rgba(0, 210, 106, 0.15);
+            --accent-red: #ff4757; --accent-red-glow: rgba(255, 71, 87, 0.15); --accent-blue: #4a9eff;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'DM Sans', sans-serif; background: var(--bg-primary); color: var(--text-primary); overflow-x: hidden; }
+        .bg-gradient { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(ellipse 80% 50% at 20% 10%, rgba(0, 210, 106, 0.18) 0%, transparent 50%), radial-gradient(ellipse 60% 40% at 80% 20%, rgba(74, 158, 255, 0.14) 0%, transparent 50%), radial-gradient(ellipse 70% 50% at 50% 80%, rgba(0, 210, 106, 0.10) 0%, transparent 50%); pointer-events: none; z-index: 0; }
+        header { position: relative; z-index: 10; padding: 16px 40px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); }
+        .logo { display: flex; align-items: center; cursor: pointer; text-decoration: none; }
+        .logo-text { font-family: 'Instrument Serif', serif; font-size: 28px; letter-spacing: -0.5px; }
+        .logo-text .c { color: var(--text-primary); }
+        .logo-text .p { color: var(--accent-green); }
+        nav { display: flex; gap: 32px; align-items: center; }
+        nav a { color: var(--text-secondary); text-decoration: none; font-size: 14px; font-weight: 500; transition: color 0.2s; }
+        nav a:hover, nav a.active { color: var(--text-primary); }
+        .auth-section { display: flex; align-items: center; gap: 16px; }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .user-avatar { width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--accent-green); }
+        .user-name { font-size: 14px; color: var(--text-primary); }
+        .user-plan { font-size: 11px; color: var(--accent-green); background: var(--accent-green-glow); padding: 2px 8px; border-radius: 10px; }
+        .auth-btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.2s; border: none; display: flex; align-items: center; gap: 8px; }
+        .auth-btn.google { background: white; color: #333; }
+        .auth-btn.google:hover { background: #f0f0f0; }
+        .auth-btn.signout { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
+        .auth-btn.signout:hover { border-color: var(--accent-red); color: var(--accent-red); }
+        .page { display: none; }
+        .page.active { display: block; }
+        main { position: relative; z-index: 10; padding: 30px 48px 20px; }
+        .hero { text-align: center; margin-bottom: 24px; }
+        .hero h1 { font-family: 'Instrument Serif', serif; font-size: clamp(36px, 6vw, 64px); font-weight: 400; line-height: 1.1; margin-bottom: 12px; }
+        .hero h1 em { font-style: italic; color: var(--accent-green); }
+        .hero p { font-family: 'Instrument Serif', serif; font-size: 18px; color: var(--text-secondary); max-width: 560px; margin: 0 auto; }
+        .upload-zone { background: var(--bg-card); border: 2px dashed var(--border); border-radius: 20px; padding: 60px 40px; text-align: center; transition: all 0.3s; cursor: pointer; margin-bottom: 16px; }
+        .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent-green); background: var(--accent-green-glow); }
+        .upload-zone.has-image { padding: 20px; }
+        .upload-zone.disabled { opacity: 0.5; pointer-events: none; }
+        .upload-icon { width: 80px; height: 80px; margin: 0 auto 20px; background: var(--bg-hover); border-radius: 20px; display: flex; align-items: center; justify-content: center; }
+        .upload-icon svg { width: 36px; height: 36px; stroke: var(--accent-green); }
+        .upload-zone h3 { font-family: 'Instrument Serif', serif; font-size: 28px; margin-bottom: 12px; font-weight: 400; }
+        .upload-zone p { font-family: 'Instrument Serif', serif; color: var(--text-muted); font-size: 18px; }
+        .upload-zone p span { color: var(--accent-green); cursor: pointer; }
+        #fileInput { display: none; }
+        .preview-image { max-width: 100%; max-height: 400px; border-radius: 12px; display: none; }
+        .preview-image.visible { display: block; margin: 0 auto; }
+        .upload-content.hidden { display: none; }
+        .paywall-message { background: linear-gradient(135deg, var(--bg-card) 0%, rgba(74, 158, 255, 0.1) 100%); border: 1px solid var(--accent-blue); border-radius: 16px; padding: 40px; text-align: center; margin-bottom: 16px; }
+        .paywall-message h3 { font-family: 'Instrument Serif', serif; font-size: 24px; margin-bottom: 12px; }
+        .paywall-message p { color: var(--text-secondary); margin-bottom: 20px; }
+        .paywall-message .btn { padding: 14px 28px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; border: none; margin: 0 8px; }
+        .paywall-message .btn.primary { background: var(--accent-green); color: #000; }
+        .paywall-message .btn.secondary { background: transparent; border: 1px solid var(--border); color: var(--text-primary); }
+        .action-buttons { display: none; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+        .action-buttons.visible { display: grid; }
+        .action-btn { padding: 18px 24px; border-radius: 14px; border: 1px solid var(--border); background: var(--bg-secondary); cursor: pointer; transition: all 0.3s; text-align: left; }
+        .action-btn:hover { transform: translateY(-2px); }
+        .action-btn.instant { border-color: rgba(0, 210, 106, 0.3); }
+        .action-btn.instant:hover { background: var(--accent-green-glow); border-color: var(--accent-green); }
+        .action-btn.optimal { border-color: rgba(74, 158, 255, 0.3); }
+        .action-btn.optimal:hover { background: rgba(74, 158, 255, 0.1); border-color: var(--accent-blue); }
+        .action-btn .icon { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+        .action-btn.instant .icon { background: var(--accent-green-glow); }
+        .action-btn.instant .icon svg { stroke: var(--accent-green); }
+        .action-btn.optimal .icon { background: rgba(74, 158, 255, 0.15); }
+        .action-btn.optimal .icon svg { stroke: var(--accent-blue); }
+        .action-btn h4 { font-size: 18px; font-weight: 600; margin-bottom: 6px; color: var(--text-primary); }
+        .action-btn p { font-size: 14px; color: var(--text-secondary); }
+        .results-section { display: none; }
+        .results-section.visible { display: block; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .result-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; margin-bottom: 16px; }
+        .result-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+        .result-header h3 { font-family: 'Instrument Serif', serif; font-size: 28px; font-weight: 400; }
+        .direction-badge { display: flex; align-items: center; gap: 8px; padding: 10px 20px; border-radius: 100px; font-weight: 600; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+        .direction-badge.long { background: var(--accent-green-glow); color: var(--accent-green); border: 1px solid rgba(0, 210, 106, 0.3); }
+        .direction-badge.short { background: var(--accent-red-glow); color: var(--accent-red); border: 1px solid rgba(255, 71, 87, 0.3); }
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+        .metric-card { background: var(--bg-secondary); border-radius: 10px; padding: 16px; }
+        .metric-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+        .metric-value { font-size: 22px; font-weight: 600; }
+        .metric-value.green { color: var(--accent-green); }
+        .metric-value.red { color: var(--accent-red); }
+        .metric-value.blue { color: var(--accent-blue); }
+        .analysis-text { background: var(--bg-secondary); border-radius: 10px; padding: 18px; margin-top: 16px; }
+        .analysis-text h4 { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        .analysis-text p { color: var(--text-secondary); line-height: 1.6; font-size: 14px; margin: 0; }
+        .analysis-highlight { background: rgba(74, 158, 255, 0.1); border-left: 3px solid var(--accent-blue); padding: 12px 16px; margin-bottom: 14px; border-radius: 0 8px 8px 0; font-size: 14px; color: var(--text-secondary); }
+        .analysis-highlight strong { color: var(--accent-blue); }
+        .scan-disclaimer { background: rgba(255, 193, 7, 0.1); border: 1px solid rgba(255, 193, 7, 0.3); border-radius: 10px; padding: 14px 18px; margin-top: 16px; font-size: 12px; color: #ffc107; line-height: 1.5; }
+        .reset-btn { display: none; margin: 10px auto; padding: 10px 24px; background: transparent; border: 1px solid var(--border); border-radius: 100px; color: var(--text-secondary); font-size: 13px; cursor: pointer; }
+        .reset-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+        .reset-btn.visible { display: block; }
+        .usage-bar { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; display: none; }
+        .usage-bar.visible { display: block; }
+        .usage-bar-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+        .usage-bar-track { height: 8px; background: var(--bg-hover); border-radius: 4px; overflow: hidden; }
+        .usage-bar-fill { height: 100%; background: var(--accent-green); border-radius: 4px; transition: width 0.3s; }
+        .news-ticker { display: flex; gap: 40px; padding: 18px 0; overflow-x: auto; scrollbar-width: none; }
+        .news-ticker::-webkit-scrollbar { display: none; }
+        .news-item { display: flex; align-items: center; gap: 14px; white-space: nowrap; flex-shrink: 0; }
+        .news-time { font-size: 13px; color: var(--accent-green); font-weight: 600; background: var(--accent-green-glow); padding: 6px 12px; border-radius: 6px; }
+        .news-text { font-size: 15px; color: var(--text-secondary); }
+        .chart-container { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 16px; height: 400px; }
+        .ticker-container { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
+        .disclaimer { text-align: center; padding: 20px; color: var(--text-muted); font-size: 13px; }
+        .loading-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10, 10, 11, 0.9); display: none; align-items: center; justify-content: center; z-index: 1000; flex-direction: column; gap: 24px; }
+        .loading-overlay.visible { display: flex; }
+        .loader { width: 60px; height: 60px; border: 3px solid var(--border); border-top-color: var(--accent-green); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { font-size: 18px; color: var(--text-secondary); }
+        .loading-subtext { font-size: 14px; color: var(--text-muted); }
+        .features-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-top: 40px; }
+        .feature-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 32px; transition: all 0.3s; }
+        .feature-card:hover { border-color: var(--accent-green); transform: translateY(-4px); }
+        .feature-icon { width: 56px; height: 56px; background: var(--accent-green-glow); border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px; }
+        .feature-icon svg { width: 28px; height: 28px; stroke: var(--accent-green); }
+        .feature-card h3 { font-size: 20px; font-weight: 600; margin-bottom: 12px; }
+        .feature-card p { color: var(--text-secondary); line-height: 1.6; font-size: 15px; }
+        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-top: 40px; max-width: 1000px; margin-left: auto; margin-right: auto; }
+        .pricing-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 32px; text-align: center; position: relative; transition: all 0.3s; }
+        .pricing-card:hover { border-color: var(--accent-green); transform: translateY(-4px); }
+        .pricing-card.popular { border-color: var(--accent-green); background: linear-gradient(180deg, rgba(0, 210, 106, 0.08) 0%, var(--bg-card) 100%); }
+        .popular-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--accent-green); color: #000; padding: 6px 16px; border-radius: 100px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+        .pricing-card h3 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+        .pricing-card .price { font-size: 48px; font-weight: 700; color: var(--text-primary); margin: 20px 0; }
+        .pricing-card .price span { font-size: 18px; color: var(--text-muted); font-weight: 400; }
+        .pricing-card .period { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+        .pricing-features { list-style: none; text-align: left; margin-bottom: 32px; }
+        .pricing-features li { padding: 10px 0; color: var(--text-secondary); display: flex; align-items: center; gap: 12px; font-size: 14px; }
+        .pricing-features li svg { width: 20px; height: 20px; stroke: var(--accent-green); flex-shrink: 0; }
+        .pricing-btn { width: 100%; padding: 14px 24px; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; border: none; }
+        .pricing-btn.primary { background: var(--accent-green); color: #000; }
+        .pricing-btn.primary:hover { background: #00b85c; }
+        .pricing-btn.secondary { background: transparent; border: 1px solid var(--border); color: var(--text-primary); }
+        .pricing-btn.secondary:hover { border-color: var(--accent-green); }
+        .error-card { text-align: center; padding: 40px 20px; }
+        .error-card .icon { font-size: 48px; margin-bottom: 16px; }
+        .error-card h4 { font-size: 18px; color: var(--text-primary); margin-bottom: 8px; }
+        .error-card p { font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+        .secret-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10, 10, 11, 0.95); display: none; align-items: center; justify-content: center; z-index: 2000; }
+        .secret-modal.visible { display: flex; }
+        .secret-modal-content { background: var(--bg-card); border: 1px solid var(--accent-green); border-radius: 16px; padding: 32px; text-align: center; max-width: 400px; }
+        .secret-modal h3 { font-family: 'Instrument Serif', serif; font-size: 24px; margin-bottom: 16px; color: var(--accent-green); }
+        .secret-modal input { width: 100%; padding: 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary); font-size: 16px; text-align: center; margin-bottom: 16px; }
+        .secret-modal button { padding: 12px 24px; border-radius: 8px; border: none; background: var(--accent-green); color: #000; font-weight: 600; cursor: pointer; margin: 0 8px; }
+        .secret-modal button.cancel { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
+        .bypass-badge { background: var(--accent-green); color: #000; padding: 4px 12px; border-radius: 100px; font-size: 11px; font-weight: 600; margin-left: 12px; }
+        @media (max-width: 768px) { header { padding: 16px 24px; flex-direction: column; gap: 16px; } main { padding: 20px 16px; } .action-buttons { grid-template-columns: 1fr; } .chart-container { height: 300px; } .pricing-grid { grid-template-columns: 1fr; } .auth-section { flex-wrap: wrap; justify-content: center; } }
+    </style>
+</head>
+<body>
+    <div class="bg-gradient"></div>
+    <header>
+        <a href="#" class="logo" onclick="showPage('home'); return false;">
+            <div class="logo-text"><span class="c">Chart</span><span class="p">Predict</span></div>
+        </a>
+        <nav>
+            <a href="#" onclick="showPage('home'); return false;" id="nav-home" class="active">Analyze</a>
+            <a href="#" onclick="showPage('howto'); return false;" id="nav-howto">How to Use</a>
+            <a href="#" onclick="handleFeaturesClick(); return false;" id="nav-features">Features</a>
+            <a href="#" onclick="showPage('pricing'); return false;" id="nav-pricing">Pricing</a>
+        </nav>
+        <div class="auth-section" id="authSection">
+            <button class="auth-btn google" id="googleSignIn" onclick="signInWithGoogle()">
+                <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                Sign in with Google
+            </button>
+            <div class="user-info" id="userInfo" style="display: none;">
+                <img class="user-avatar" id="userAvatar" src="" alt="Avatar">
+                <div>
+                    <div class="user-name" id="userName"></div>
+                    <div class="user-plan" id="userPlan">Free</div>
+                </div>
+                <span class="bypass-badge" id="bypassBadge" style="display: none;">BYPASS</span>
+                <button class="auth-btn signout" onclick="signOut()">Sign Out</button>
+            </div>
+        </div>
+    </header>
+
+    <main id="page-home" class="page active">
+        <section class="hero"><h1>AI-Powered <em>Futures</em> Analysis</h1><p>Upload your TradingView or TopStep chart and get instant AI analysis with entry points, stop loss, and take profit targets.</p></section>
+        
+        <div class="usage-bar" id="usageBar">
+            <div class="usage-bar-header">
+                <span>Monthly Usage</span>
+                <span id="usageText">0 / 0 analyses</span>
+            </div>
+            <div class="usage-bar-track">
+                <div class="usage-bar-fill" id="usageFill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <div class="paywall-message" id="paywallMessage" style="display: none;">
+            <h3>🔒 Subscribe to Analyze Charts</h3>
+            <p id="paywallText">Sign in and subscribe to start analyzing your trading charts with AI.</p>
+            <button class="btn primary" onclick="showPage('pricing')">View Plans</button>
+            <button class="btn secondary" onclick="signInWithGoogle()" id="paywallSignIn">Sign In</button>
+        </div>
+
+        <div class="upload-zone" id="uploadZone">
+            <div class="upload-content" id="uploadContent">
+                <div class="upload-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg></div>
+                <h3>Drop your chart here</h3>
+                <p>or <span onclick="document.getElementById('fileInput').click()">browse files</span> — PNG, JPG up to 10MB</p>
+            </div>
+            <img class="preview-image" id="previewImage" alt="Chart preview">
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+        <div class="action-buttons" id="actionButtons">
+            <button class="action-btn instant" id="instantBtn"><div class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg></div><h4>Enter Now</h4><p>Get immediate entry with stop loss and take profit levels.</p></button>
+            <button class="action-btn optimal" id="optimalBtn"><div class="icon"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div><h4>Wait for Optimal Entry</h4><p>Get a better entry price to wait for.</p></button>
+        </div>
+        <section class="results-section" id="resultsSection"><div class="result-card"><div class="result-header"><h3>Analysis Results</h3><div class="direction-badge" id="directionBadge"><span id="directionText">LONG</span></div></div><div class="metrics-grid" id="metricsGrid"></div><div class="analysis-text"><h4>AI Analysis</h4><div id="analysisText"></div></div><div class="scan-disclaimer"><strong>⚠️ Disclaimer:</strong> This analysis is for educational purposes only and does not constitute financial advice. Trading futures involves substantial risk of loss. Past performance is not indicative of future results. Always do your own research and consult a licensed financial advisor before making any trading decisions.</div></div></section>
+        <button class="reset-btn" id="resetBtn">↻ Analyze Another Chart</button>
+        <section class="news-ticker"><div class="news-item"><span class="news-time">3m ago</span><span class="news-text">S&P 500 futures edge higher as traders await Fed minutes</span></div><div class="news-item"><span class="news-time">12m ago</span><span class="news-text">Nasdaq rallies on strong tech earnings outlook</span></div><div class="news-item"><span class="news-time">24m ago</span><span class="news-text">Crude oil gains 0.8% amid Middle East supply concerns</span></div><div class="news-item"><span class="news-time">38m ago</span><span class="news-text">Gold trades near $2,650 as dollar weakens</span></div></section>
+        <div class="chart-container"><div class="tradingview-widget-container" style="height:100%;width:100%"><div id="tradingview_chart" style="height:100%;width:100%"></div></div></div>
+        <div class="ticker-container"><div class="tradingview-widget-container"><div class="tradingview-widget-container__widget"></div></div></div>
+        <div class="disclaimer"><strong>Disclaimer:</strong> ChartPredict provides educational analysis only. Trading futures involves substantial risk of loss. Always do your own research.</div>
+    </main>
+
+    <main id="page-howto" class="page">
+        <section class="hero"><h1>How to <em>Use</em></h1><p>Get AI-powered trade analysis in 3 simple steps.</p></section>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon" style="background: rgba(74, 158, 255, 0.15);"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" style="stroke: #4a9eff;"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg></div>
+                <h3>Step 1: Upload Your Chart</h3>
+                <p>Take a screenshot of your trading chart from TradingView, TopStep, NinjaTrader, or any other platform. Drag and drop it into the upload zone or click to browse files.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background: rgba(74, 158, 255, 0.15);"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" style="stroke: #4a9eff;"><path stroke-linecap="round" stroke-linejoin="round" d="M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-9.47 5.227 7.917-3.286-.672zM12 2.25V4.5m5.834.166l-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243l-1.59-1.59" /></svg></div>
+                <h3>Step 2: Choose Analysis Type</h3>
+                <p><strong>Enter Now:</strong> Get immediate entry with stop loss and take profit levels for quick scalps.<br><br><strong>Wait for Optimal:</strong> Get a better entry price to wait for with improved risk/reward.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon" style="background: rgba(74, 158, 255, 0.15);"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" style="stroke: #4a9eff;"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg></div>
+                <h3>Step 3: Get Your Analysis</h3>
+                <p>Within seconds, receive AI-generated analysis including trade direction (LONG/SHORT), confidence level, entry price, stop loss, take profit, risk/reward ratio, and detailed reasoning.</p>
+            </div>
+        </div>
+        <div style="max-width: 800px; margin: 40px auto; padding: 32px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px;">
+            <h3 style="font-family: 'Instrument Serif', serif; font-size: 24px; margin-bottom: 20px; text-align: center;">📸 Tips for Best Results</h3>
+            <ul style="list-style: none; color: var(--text-secondary); line-height: 2;">
+                <li>✅ Use clear, high-resolution screenshots</li>
+                <li>✅ Include visible price levels on the Y-axis</li>
+                <li>✅ Show recent candles (last 50-100 candles work best)</li>
+                <li>✅ Include any indicators you use (RSI, MACD, etc.)</li>
+                <li>❌ Avoid blurry or cropped images</li>
+                <li>❌ Don't upload images without price data</li>
+            </ul>
+        </div>
+        <div class="disclaimer"><strong>Disclaimer:</strong> ChartPredict provides educational analysis only. Trading futures involves substantial risk of loss. Always do your own research.</div>
+    </main>
+
+    <main id="page-features" class="page">
+        <section class="hero"><h1>Powerful <em>Features</em></h1><p>Advanced AI-powered tools to help you make better trading decisions.</p></section>
+        <div class="features-grid">
+            <div class="feature-card"><div class="feature-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg></div><h3>Pattern Recognition</h3><p>Our AI identifies chart patterns including flags, wedges, head and shoulders, double tops/bottoms, and more with high accuracy.</p></div>
+            <div class="feature-card"><div class="feature-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg></div><h3>Support & Resistance</h3><p>Automatically identifies key support and resistance levels from your chart to help you place better entries and exits.</p></div>
+            <div class="feature-card"><div class="feature-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg></div><h3>Risk Management</h3><p>Get precise stop loss and take profit levels calculated based on your chart's structure and volatility.</p></div>
+            <div class="feature-card"><div class="feature-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" /></svg></div><h3>Instant Analysis</h3><p>Get comprehensive trade analysis in seconds. Just upload your chart and receive actionable insights immediately.</p></div>
+            <div class="feature-card"><div class="feature-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div><h3>Optimal Entry Timing</h3><p>Don't chase trades. Our AI suggests better entry points so you can wait for optimal risk/reward setups.</p></div>
+            <div class="feature-card"><div class="feature-icon"><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" /></svg></div><h3>Multi-Platform Support</h3><p>Works with screenshots from TradingView, TopStep, NinjaTrader, ThinkOrSwim, Tradovate, and any other charting platform.</p></div>
+        </div>
+        <div class="disclaimer"><strong>Disclaimer:</strong> ChartPredict provides educational analysis only. Trading futures involves substantial risk of loss.</div>
+    </main>
+
+    <main id="page-pricing" class="page">
+        <section class="hero"><h1>Simple <em>Pricing</em></h1><p>Choose the plan that fits your trading style. Cancel anytime.</p></section>
+        <div class="pricing-grid">
+            <div class="pricing-card"><h3>Starter</h3><div class="price">$24.99<span>/mo</span></div><p class="period">Perfect for beginners</p><ul class="pricing-features"><li><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>30 chart analyses per month</li><li><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Entry, SL & TP levels</li><li><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Pattern recognition</li><li><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Email support</li></ul><button class="pricing-btn secondary" onclick="checkout('starter')">Get Started</button></div>
+            <div class="pricing-card popular"><div class="popular-badge">Most Popular</div><h3>Pro</h3><div class="price">$52.99<span>/mo</span></div><p class="period">For active traders</p><ul class="pricing-features"><li><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>100 chart analyses per month</li><li><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Entry, SL & TP levels</li><li><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Advanced pattern recognition</li><li><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Optimal entry suggestions</li><li><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Priority support</li></ul><button class="pricing-btn primary" onclick="checkout('pro')">Get Started</button></div>
+            <div class="pricing-card"><h3>Unlimited</h3><div class="price">$99.52<span>/mo</span></div><p class="period">For professional traders</p><ul class="pricing-features"><li><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Unlimited analyses</li><li><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Everything in Pro</li><li><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Multi-timeframe analysis</li><li><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>API access</li><li><svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>Dedicated support</li></ul><button class="pricing-btn secondary" onclick="checkout('unlimited')">Get Started</button></div>
+        </div>
+        <div class="disclaimer"><strong>7-day money-back guarantee.</strong> If you're not satisfied, we'll refund your payment. No questions asked.</div>
+    </main>
+
+    <div class="loading-overlay" id="loadingOverlay"><div class="loader"></div><div class="loading-text">Analyzing price action...</div><div class="loading-subtext">Scanning patterns, support & resistance levels</div></div>
+
+    <div class="secret-modal" id="secretModal">
+        <div class="secret-modal-content">
+            <h3>🔓 Enter Access Code</h3>
+            <input type="password" id="secretCodeInput" placeholder="Enter code...">
+            <div>
+                <button onclick="verifySecretCode()">Unlock</button>
+                <button class="cancel" onclick="closeSecretModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <script type="text/javascript">new TradingView.widget({"autosize":true,"symbol":"NASDAQ:QQQ","interval":"5","timezone":"America/New_York","theme":"dark","style":"3","locale":"en","toolbar_bg":"#161618","enable_publishing":false,"hide_top_toolbar":false,"hide_legend":false,"save_image":false,"container_id":"tradingview_chart","hide_volume":true});</script>
+    <script async src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js">{"symbols":[{"proName":"NASDAQ:QQQ","title":"Nasdaq"},{"proName":"AMEX:SPY","title":"S&P 500"},{"proName":"AMEX:DIA","title":"Dow Jones"},{"proName":"AMEX:GLD","title":"Gold"},{"proName":"AMEX:USO","title":"Oil"},{"proName":"COINBASE:BTCUSD","title":"Bitcoin"},{"proName":"COINBASE:ETHUSD","title":"Ethereum"},{"proName":"FX:EURUSD","title":"EUR/USD"}],"showSymbolLogo":false,"colorTheme":"dark","isTransparent":true,"displayMode":"adaptive","locale":"en"}</script>
+
+    <script>
+        // Configuration
+        const API_URL = 'https://chartsense-api.onrender.com';
+        const SUPABASE_URL = 'https://xnre1iihdctyxstuonjj.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZuZWlsaWhkY3R5bnhhdHVtbmpqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxMzQxNDcsImV4cCI6MjA4MDcxMDE0N30.nZ7YwCfgSd29kNiprZWbtuLLkJHT4cph-l6vI2PZlV4';
+
+        // Initialize Supabase
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // State
+        let currentUser = null;
+        let userSubscription = null;
+        let bypassMode = false;
+        let featuresClickCount = 0;
+        let featuresClickTimer = null;
+
+        // DOM Elements
+        const uploadZone = document.getElementById('uploadZone');
+        const uploadContent = document.getElementById('uploadContent');
+        const previewImage = document.getElementById('previewImage');
+        const fileInput = document.getElementById('fileInput');
+        const actionButtons = document.getElementById('actionButtons');
+        const instantBtn = document.getElementById('instantBtn');
+        const optimalBtn = document.getElementById('optimalBtn');
+        const resultsSection = document.getElementById('resultsSection');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const resetBtn = document.getElementById('resetBtn');
+        const directionBadge = document.getElementById('directionBadge');
+        const metricsGrid = document.getElementById('metricsGrid');
+        const analysisText = document.getElementById('analysisText');
+        const paywallMessage = document.getElementById('paywallMessage');
+        const usageBar = document.getElementById('usageBar');
+
+        let currentImageData = null;
+
+        // Initialize on load
+        window.addEventListener('load', async () => {
+            // Check for existing session
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                await handleAuthChange(session);
+            }
+
+            // Check for bypass in localStorage
+            if (localStorage.getItem('chartpredict_bypass') === 'v00347') {
+                bypassMode = true;
+                updateUIForBypass();
+            }
+
+            // Check for payment success
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('success') === 'true') {
+                const sessionId = urlParams.get('session_id');
+                const plan = urlParams.get('plan');
+                if (sessionId && currentUser) {
+                    await verifyPayment(sessionId, plan);
+                }
+                alert('🎉 Payment successful! Your subscription is now active.');
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+            if (urlParams.get('canceled') === 'true') {
+                alert('Payment canceled. You can try again anytime.');
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+
+            updateUI();
+        });
+
+        // Auth state listener
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'SIGNED_IN' && session) {
+                await handleAuthChange(session);
+            } else if (event === 'SIGNED_OUT') {
+                currentUser = null;
+                userSubscription = null;
+                updateUI();
+            }
+        });
+
+        async function handleAuthChange(session) {
+            const user = session.user;
+            currentUser = {
+                email: user.email,
+                name: user.user_metadata?.full_name || user.email,
+                avatar: user.user_metadata?.avatar_url || ''
+            };
+
+            // Create/get user in our database
+            try {
+                const response = await fetch(`${API_URL}/user`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: currentUser.email,
+                        name: currentUser.name,
+                        avatar_url: currentUser.avatar
+                    })
+                });
+                const userData = await response.json();
+                userSubscription = userData;
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+            }
+
+            updateUI();
+        }
+
+        async function signInWithGoogle() {
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: window.location.origin + window.location.pathname
+                }
+            });
+            if (error) {
+                console.error('Sign in error:', error);
+                alert('Sign in failed. Please try again.');
+            }
+        }
+
+        async function signOut() {
+            await supabase.auth.signOut();
+            currentUser = null;
+            userSubscription = null;
+            bypassMode = false;
+            localStorage.removeItem('chartpredict_bypass');
+            updateUI();
+        }
+
+        function updateUI() {
+            const googleBtn = document.getElementById('googleSignIn');
+            const userInfo = document.getElementById('userInfo');
+            const bypassBadge = document.getElementById('bypassBadge');
+            const paywallSignIn = document.getElementById('paywallSignIn');
+
+            if (bypassMode) {
+                updateUIForBypass();
+                return;
+            }
+
+            if (currentUser) {
+                googleBtn.style.display = 'none';
+                userInfo.style.display = 'flex';
+                document.getElementById('userName').textContent = currentUser.name;
+                document.getElementById('userAvatar').src = currentUser.avatar || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="%23333"/><text x="50" y="60" text-anchor="middle" fill="%23fff" font-size="40">' + currentUser.name.charAt(0).toUpperCase() + '</text></svg>';
+                bypassBadge.style.display = 'none';
+
+                if (userSubscription && userSubscription.subscription_status === 'active') {
+                    document.getElementById('userPlan').textContent = userSubscription.subscription_plan?.toUpperCase() || 'ACTIVE';
+                    paywallMessage.style.display = 'none';
+                    uploadZone.classList.remove('disabled');
+                    usageBar.classList.add('visible');
+                    document.getElementById('usageText').textContent = `${userSubscription.analyses_used} / ${userSubscription.analyses_limit} analyses`;
+                    const usagePercent = (userSubscription.analyses_used / userSubscription.analyses_limit) * 100;
+                    document.getElementById('usageFill').style.width = usagePercent + '%';
+                } else {
+                    document.getElementById('userPlan').textContent = 'FREE';
+                    paywallMessage.style.display = 'block';
+                    document.getElementById('paywallText').textContent = 'Subscribe to start analyzing your trading charts with AI.';
+                    paywallSignIn.style.display = 'none';
+                    uploadZone.classList.add('disabled');
+                    usageBar.classList.remove('visible');
+                }
+            } else {
+                googleBtn.style.display = 'flex';
+                userInfo.style.display = 'none';
+                paywallMessage.style.display = 'block';
+                document.getElementById('paywallText').textContent = 'Sign in and subscribe to start analyzing your trading charts with AI.';
+                paywallSignIn.style.display = 'inline-block';
+                uploadZone.classList.add('disabled');
+                usageBar.classList.remove('visible');
+            }
+        }
+
+        function updateUIForBypass() {
+            const googleBtn = document.getElementById('googleSignIn');
+            const userInfo = document.getElementById('userInfo');
+            const bypassBadge = document.getElementById('bypassBadge');
+
+            googleBtn.style.display = 'none';
+            userInfo.style.display = 'flex';
+            document.getElementById('userName').textContent = 'Bypass User';
+            document.getElementById('userAvatar').src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="50" fill="%2300d26a"/><text x="50" y="60" text-anchor="middle" fill="%23000" font-size="40">✓</text></svg>';
+            document.getElementById('userPlan').textContent = 'UNLIMITED';
+            bypassBadge.style.display = 'inline';
+            paywallMessage.style.display = 'none';
+            uploadZone.classList.remove('disabled');
+            usageBar.classList.remove('visible');
+        }
+
+        // Secret code feature - triple click Features
+        function handleFeaturesClick() {
+            featuresClickCount++;
+            
+            if (featuresClickTimer) clearTimeout(featuresClickTimer);
+            featuresClickTimer = setTimeout(() => { featuresClickCount = 0; }, 500);
+
+            if (featuresClickCount >= 3) {
+                featuresClickCount = 0;
+                document.getElementById('secretModal').classList.add('visible');
+                document.getElementById('secretCodeInput').focus();
+            } else {
+                showPage('features');
+            }
+        }
+
+        function verifySecretCode() {
+            const code = document.getElementById('secretCodeInput').value;
+            if (code === 'v00347') {
+                bypassMode = true;
+                localStorage.setItem('chartpredict_bypass', 'v00347');
+                closeSecretModal();
+                updateUIForBypass();
+                alert('🔓 Access granted! You now have unlimited access.');
+            } else {
+                alert('Invalid code. Please try again.');
+            }
+        }
+
+        function closeSecretModal() {
+            document.getElementById('secretModal').classList.remove('visible');
+            document.getElementById('secretCodeInput').value = '';
+        }
+
+        async function verifyPayment(sessionId, plan) {
+            try {
+                await fetch(`${API_URL}/verify-payment`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sessionId, email: currentUser.email, plan })
+                });
+                // Refresh user data
+                const response = await fetch(`${API_URL}/user`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: currentUser.email, name: currentUser.name, avatar_url: currentUser.avatar })
+                });
+                userSubscription = await response.json();
+                updateUI();
+            } catch (error) {
+                console.error('Payment verification error:', error);
+            }
+        }
+
+        // Page navigation
+        function showPage(page) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+            document.getElementById('page-' + page).classList.add('active');
+            document.getElementById('nav-' + page)?.classList.add('active');
+        }
+
+        // Checkout
+        async function checkout(plan) {
+            if (!currentUser && !bypassMode) {
+                alert('Please sign in first to subscribe.');
+                signInWithGoogle();
+                return;
+            }
+            try {
+                const response = await fetch(`${API_URL}/create-checkout-session`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ plan, email: currentUser?.email })
+                });
+                const data = await response.json();
+                if (data.url) {
+                    window.location.href = data.url;
+                } else {
+                    alert('Error creating checkout session. Please try again.');
+                }
+            } catch (error) {
+                console.error('Checkout error:', error);
+                alert('Error connecting to payment server. Please try again.');
+            }
+        }
+
+        // File handling
+        uploadZone.addEventListener('dragover', (e) => { e.preventDefault(); if (!uploadZone.classList.contains('disabled')) uploadZone.classList.add('dragover'); });
+        uploadZone.addEventListener('dragleave', () => { uploadZone.classList.remove('dragover'); });
+        uploadZone.addEventListener('drop', (e) => { e.preventDefault(); uploadZone.classList.remove('dragover'); if (uploadZone.classList.contains('disabled')) return; const file = e.dataTransfer.files[0]; if (file && file.type.startsWith('image/')) handleFile(file); });
+        uploadZone.addEventListener('click', () => { if (!currentImageData && !uploadZone.classList.contains('disabled')) fileInput.click(); });
+        fileInput.addEventListener('change', (e) => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+        function handleFile(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                currentImageData = e.target.result;
+                previewImage.src = currentImageData;
+                previewImage.classList.add('visible');
+                uploadContent.classList.add('hidden');
+                uploadZone.classList.add('has-image');
+                actionButtons.classList.add('visible');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Analysis
+        instantBtn.addEventListener('click', () => analyzeChart('instant'));
+        optimalBtn.addEventListener('click', () => analyzeChart('optimal'));
+
+        async function analyzeChart(mode) {
+            if (!currentImageData) return;
+            
+            loadingOverlay.classList.add('visible');
+
+            try {
+                const response = await fetch(`${API_URL}/analyze`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        imageData: currentImageData,
+                        mode: mode,
+                        email: currentUser?.email,
+                        bypassCode: bypassMode ? 'v00347' : null
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.error === 'not_a_chart') {
+                    showNotChartError();
+                } else if (result.error === 'auth_required') {
+                    alert('Please sign in to analyze charts.');
+                    signInWithGoogle();
+                } else if (result.error === 'subscription_required') {
+                    alert('Please subscribe to analyze charts.');
+                    showPage('pricing');
+                } else if (result.error === 'limit_reached') {
+                    alert('Monthly analysis limit reached. Please upgrade your plan.');
+                    showPage('pricing');
+                } else if (result.error) {
+                    showError(result.message || 'Analysis failed. Please try again.');
+                } else {
+                    displayResults(result, mode);
+                    // Update usage if not bypass
+                    if (!bypassMode && userSubscription) {
+                        userSubscription.analyses_used++;
+                        updateUI();
+                    }
+                }
+            } catch (error) {
+                console.error('API Error:', error);
+                showError('Could not connect to analysis server. Please try again.');
+            }
+
+            loadingOverlay.classList.remove('visible');
+        }
+
+        function showNotChartError() { directionBadge.className = 'direction-badge'; directionBadge.innerHTML = '<span>⚠️ NOT A CHART</span>'; directionBadge.style.cssText = 'background: var(--accent-red-glow); color: var(--accent-red); border: 1px solid rgba(255,71,87,0.3);'; metricsGrid.innerHTML = '<div class="error-card" style="grid-column: 1/-1;"><div class="icon">📊</div><h4>Trading Chart Required</h4><p>Please upload a screenshot of a trading chart from TradingView, TopStep, or similar.<br>The image should show candlesticks, price action, or indicators.</p></div>'; analysisText.innerHTML = '<p style="text-align:center;color:var(--text-muted);">Supported: Candlestick charts, line charts, bar charts with visible prices.</p>'; resultsSection.classList.add('visible'); resetBtn.classList.add('visible'); }
+
+        function showError(message) { directionBadge.className = 'direction-badge'; directionBadge.innerHTML = '<span>❌ ERROR</span>'; directionBadge.style.cssText = 'background: var(--accent-red-glow); color: var(--accent-red); border: 1px solid rgba(255,71,87,0.3);'; metricsGrid.innerHTML = '<div class="error-card" style="grid-column: 1/-1;"><div class="icon">⚠️</div><h4>Analysis Failed</h4><p>' + message + '</p></div>'; analysisText.innerHTML = ''; resultsSection.classList.add('visible'); resetBtn.classList.add('visible'); }
+
+        function displayResults(result, mode) { const isLong = result.direction === 'LONG'; directionBadge.className = 'direction-badge ' + (isLong ? 'long' : 'short'); directionBadge.style.cssText = ''; directionBadge.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke-width="3" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="' + (isLong ? 'M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25' : 'M4.5 4.5l15 15m0 0V8.25m0 11.25H8.25') + '" /></svg><span>' + result.direction + '</span>'; let metricsHTML = '<div class="metric-card"><div class="metric-label">Confidence</div><div class="metric-value blue">' + result.confidence + '%</div></div><div class="metric-card"><div class="metric-label">Win Rate</div><div class="metric-value green">' + result.winRate + '</div></div>'; if (mode === 'optimal' && result.entryPrice) { metricsHTML += '<div class="metric-card"><div class="metric-label">Entry Price</div><div class="metric-value blue">' + result.entryPrice + '</div></div>'; } else { metricsHTML += '<div class="metric-card"><div class="metric-label">Entry Price</div><div class="metric-value">' + result.currentPrice + '</div></div>'; } metricsHTML += '<div class="metric-card"><div class="metric-label">Stop Loss</div><div class="metric-value red">' + result.stopLoss + '</div></div><div class="metric-card"><div class="metric-label">Take Profit</div><div class="metric-value green">' + result.takeProfit + '</div></div><div class="metric-card"><div class="metric-label">Risk/Reward</div><div class="metric-value">' + result.riskReward + '</div></div>'; metricsGrid.innerHTML = metricsHTML; let analysisHTML = ''; if (mode === 'optimal' && result.waitReason) { analysisHTML = '<div class="analysis-highlight"><strong>Entry Strategy:</strong> ' + result.waitReason + '</div>'; } analysisHTML += '<p>' + result.analysis + '</p>'; analysisText.innerHTML = analysisHTML; resultsSection.classList.add('visible'); resetBtn.classList.add('visible'); resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+
+        resetBtn.addEventListener('click', () => { currentImageData = null; previewImage.src = ''; previewImage.classList.remove('visible'); uploadContent.classList.remove('hidden'); uploadZone.classList.remove('has-image'); actionButtons.classList.remove('visible'); resultsSection.classList.remove('visible'); resetBtn.classList.remove('visible'); fileInput.value = ''; });
+
+        // Secret code on Enter key
+        document.getElementById('secretCodeInput').addEventListener('keypress', (e) => { if (e.key === 'Enter') verifySecretCode(); });
+    </script>
+</body>
+</html>
